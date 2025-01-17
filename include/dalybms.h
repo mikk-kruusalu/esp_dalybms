@@ -1,10 +1,12 @@
 // see also https://github.com/DaveDavenport/daly_bms_mqtt/tree/main
+// https://github.com/tizbac/daly-bms-uart-linux/tree/main
+// and https://github.com/maland16/daly-bms-uart/tree/main
 
 #pragma once
 
 #include <stdint.h>
 
-#define DALYBMS_MAX_MSG_LEN 14
+#define DALYBMS_MAX_MSG_LEN 13
 #define DALYBMS_MAX_NUM_CELLS 24
 
 #ifdef __cplusplus
@@ -34,7 +36,13 @@ extern "C"
         //
         CMD_ID_CELL_BALANCE_STATE = 0x97,
         //
-        CMD_ID_BATTERY_FAILURE_STATE = 0x98
+        CMD_ID_BATTERY_FAILURE_STATE = 0x98,
+        //
+        CMD_ID_DISCHARGE_FET = 0xD9,
+        //
+        CMD_ID_CHARGE_FET = 0xDA,
+        //
+        CMD_ID_BMS_RESET = 0x00,
     } dalybms_cmd_id_t;
 
     /**
@@ -171,6 +179,8 @@ extern "C"
     dalybms_msg_t dalybms_read(const uart_port_t uart_num, dalybms_cmd_id_t cmd_id);
     dalybms_cell_voltages_t dalybms_read_cell_voltages(const uart_port_t uart_num, uint8_t num_cells);
     void dalybms_test(uart_port_t uart_num);
+    void dalybms_set_charge_fet(uart_port_t uart_num, uint8_t level);
+    void dalybms_set_discharge_fet(uart_port_t uart_num, uint8_t level);
 
 #ifdef __cplusplus
 }

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 #include "freertos/FreeRTOS.h"
@@ -25,11 +26,15 @@ static uint8_t _dalybms_calc_checksum(const uint8_t *msg)
     return chk;
 }
 
-static void _dalybms_send_command(const dalybms_cmd_id_t cmdid, const uart_port_t uart_num)
+static void _dalybms_send_command(
+    const dalybms_cmd_id_t cmdid,
+    const uart_port_t uart_num,
+    const uint8_t *data
+)
 {
     ESP_LOGI(TAG, "Sending command %#02x", cmdid);
     // With BMS we send a command, and wait for reply.
-    uint8_t command_msg[13] = {
+    uint8_t command_msg[DALYBMS_MAX_MSG_LEN] = {
         0xA5,  // 0 Start byte
         0x40,  // 1 'Upper' module
         cmdid, // 2 Command byte.
@@ -44,11 +49,15 @@ static void _dalybms_send_command(const dalybms_cmd_id_t cmdid, const uart_port_
         0x00,  // 11 data 7
         0x00   // 12 Checksum
     };
+
+    if (data != NULL) {
+        memcpy(command_msg+4, data, 8);
+    }
     // Calculate the checksum
-    command_msg[12] = _dalybms_calc_checksum(command_msg);
+    command_msg[DALYBMS_MAX_MSG_LEN - 1] = _dalybms_calc_checksum(command_msg);
 
     // Send it to the bms.
-    uart_write_bytes(uart_num, (const char *)command_msg, 13);
+    uart_write_bytes(uart_num, (const char *)command_msg, DALYBMS_MAX_MSG_LEN);
 }
 
 static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
@@ -139,7 +148,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             //ret_msg.status.cycles = msg[9] << 8 | msg[10];
             ESP_LOGI(
                 TAG,
-                "Battery no: %d  Temp no: %d  Charger: %d  Load: %d",
+                "Number of cells: %d  Number of NTC: %d  Charger: %d  Load: %d",
                 ret_msg.status.num_cells,
                 ret_msg.status.num_temp,
                 ret_msg.status.charger,
@@ -180,16 +189,26 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             );
             break;
         }
+        case CMD_ID_DISCHARGE_FET: {
+            ESP_LOGI(TAG, "Discharge MOS set to level %d", msg[4]);
+            break;
+        }
+        case CMD_ID_CHARGE_FET: {
+            ESP_LOGI(TAG, "Charge MOS set to level %d", msg[4]);
+            break;
+        }
         default:
-            ESP_LOGW(TAG, "Unknown command %d", ret_msg.id);
+            ESP_LOGW(TAG, "Unknown command %02X", ret_msg.id);
     }
 
     return ret_msg;
 }
 
-static esp_err_t _uart_read_byte(uart_port_t uart_num, void *buf, uint32_t length, TickType_t timeout)
+static esp_err_t _uart_read_byte(
+    uart_port_t uart_num, void *buf, uint32_t length
+)
 {
-    int uart_ret = uart_read_bytes(uart_num, buf, length, timeout);
+    int uart_ret = uart_read_bytes(uart_num, buf, length, pdMS_TO_TICKS(250));
     if (uart_ret == 0) {
         // Timeout
         ESP_LOGE(TAG, "Error, uart timeout");
@@ -198,58 +217,60 @@ static esp_err_t _uart_read_byte(uart_port_t uart_num, void *buf, uint32_t lengt
     return ESP_OK;
 }
 
-static void _dalybms_read_response(const uart_port_t uart_num, uint8_t *raw_msg)
+static void _dalybms_read_response(
+    const uart_port_t uart_num, uint8_t *raw_msg
+)
 {
     uint8_t c = 0x0;
 
     // Search for header.
     while (c != 0xA5) {
-        _uart_read_byte(uart_num, &c, 1, pdMS_TO_TICKS(250));
+        _uart_read_byte(uart_num, &c, 1);
     }
     raw_msg[CMD_INDEX_START] = c;
 
     // get address
-    _uart_read_byte(uart_num, &c, 1, pdMS_TO_TICKS(250));
+    _uart_read_byte(uart_num, &c, 1);
     raw_msg[CMD_INDEX_ADDRESS] = c;
 
     // get data id
-    _uart_read_byte(uart_num, &c, 1, pdMS_TO_TICKS(250));
+    _uart_read_byte(uart_num, &c, 1);
     raw_msg[CMD_INDEX_DATA_ID] = c;
 
     // get data length
-    _uart_read_byte(uart_num, &c, 1, pdMS_TO_TICKS(250));
+    _uart_read_byte(uart_num, &c, 1);
     raw_msg[CMD_INDEX_DATA_LEN] = c;
 
     // iterate over data
     for (uint8_t iter = 0; iter < raw_msg[CMD_INDEX_DATA_LEN]; iter++) {
-        _uart_read_byte(uart_num, &c, 1, pdMS_TO_TICKS(250));
+        _uart_read_byte(uart_num, &c, 1);
         raw_msg[4 + iter] = c;
     }
 
     // get checksum
-    _uart_read_byte(uart_num, &c, 1, pdMS_TO_TICKS(250));
+    _uart_read_byte(uart_num, &c, 1);
     raw_msg[12] = c;
 
     uint8_t checksum = _dalybms_calc_checksum(raw_msg);
     if (c != checksum) {
         ESP_LOGE(TAG, "Error, checksum failed: %02X - %02X (%d)", c, checksum,
                     raw_msg[CMD_INDEX_DATA_LEN]);
-        for (int i = 0; i < DALYBMS_MAX_MSG_LEN-1; i++) {
-            ESP_LOGE(TAG, "%d: %08X", i, raw_msg[i]);
+        for (int i = 0; i < DALYBMS_MAX_MSG_LEN; i++) {
+            ESP_LOGE(TAG, "%d: %02X", i, raw_msg[i]);
         }
         return;
     }
     ESP_LOGI(TAG, "Got msg: %02X id of length: %02X",
                 raw_msg[CMD_INDEX_DATA_ID], raw_msg[CMD_INDEX_DATA_LEN]);
 
-    for (int i = 0; i < DALYBMS_MAX_MSG_LEN-1; i++) {
-        ESP_LOGD(TAG, "%d: %08X", i, raw_msg[i]);
+    for (int i = 0; i < DALYBMS_MAX_MSG_LEN; i++) {
+        ESP_LOGD(TAG, "%d: %02X", i, raw_msg[i]);
     }
 }
 
 dalybms_msg_t dalybms_read(const uart_port_t uart_num, dalybms_cmd_id_t cmd_id)
 {
-    _dalybms_send_command(cmd_id, uart_num);
+    _dalybms_send_command(cmd_id, uart_num, NULL);
 
     uint8_t raw_msg[DALYBMS_MAX_MSG_LEN] = {
         0x00,
@@ -294,6 +315,39 @@ dalybms_cell_voltages_t dalybms_read_cell_voltages(
     }
 
     return cvs;
+}
+
+static void _dalybms_set_fet(
+    uart_port_t uart_num, dalybms_cmd_id_t cmd_id, uint8_t level
+)
+{
+    uint8_t data[8] = {
+        level,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x00
+    };
+    _dalybms_send_command(cmd_id, uart_num, data);
+
+    uint8_t raw_msg[DALYBMS_MAX_MSG_LEN] = {
+        0x00,
+    };
+    _dalybms_read_response(uart_num, raw_msg);
+    _dalybms_process_msg(raw_msg);
+}
+
+void dalybms_set_discharge_fet(uart_port_t uart_num, uint8_t level)
+{
+    _dalybms_set_fet(uart_num, CMD_ID_DISCHARGE_FET, level);
+}
+
+void dalybms_set_charge_fet(uart_port_t uart_num, uint8_t level)
+{
+    _dalybms_set_fet(uart_num, CMD_ID_CHARGE_FET, level);
 }
 
 void dalybms_test(uart_port_t uart_num)
