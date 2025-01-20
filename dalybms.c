@@ -123,7 +123,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ret_msg.cs.status = msg[4];
             ret_msg.cs.charge = msg[5];
             ret_msg.cs.discharge = msg[6];
-            ret_msg.cs.life = msg[7];
+            ret_msg.cs.ncycles = msg[7];
             ret_msg.cs.residual_charge = (
                 msg[8] << 24 | msg[9] << 16 | msg[10] << 8 | msg[11]
             );
@@ -134,7 +134,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
                 ret_msg.cs.status,
                 ret_msg.cs.charge,
                 ret_msg.cs.discharge,
-                ret_msg.cs.life,
+                ret_msg.cs.ncycles,
                 ret_msg.cs.residual_charge
             );
             break;
@@ -189,6 +189,17 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             );
             break;
         }
+        case CMD_ID_CELL_BALANCE_STATE: {
+            ret_msg.bs.cells = (
+                msg[7] << 24 | msg[6] << 16 | msg[5] << 8 | msg[4]
+            );
+            ESP_LOGI(
+                TAG,
+                "Cell balance state %#04lX",
+                ret_msg.bs.cells
+            );
+            break;
+        }
         case CMD_ID_DISCHARGE_FET: {
             ESP_LOGI(TAG, "Discharge MOS set to level %d", msg[4]);
             break;
@@ -197,8 +208,21 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ESP_LOGI(TAG, "Charge MOS set to level %d", msg[4]);
             break;
         }
+        case CMD_ID_BATTERY_FAILURE_STATE: {
+            ret_msg.fail.code = msg[7];
+            ESP_LOGI(
+                TAG,
+                "Got failure code %d",
+                ret_msg.fail.code
+            );
+            for (uint8_t i = 0; i < 7; i++) {
+                ret_msg.fail.bitmask[i] = msg[i + 4];
+                ESP_LOGI(TAG, "Byte %d: %#02X", i, msg[i + 4]);
+            }
+            break;
+        }
         default:
-            ESP_LOGW(TAG, "Unknown command %02X", ret_msg.id);
+            ESP_LOGW(TAG, "Unknown command %#02X", ret_msg.id);
     }
 
     return ret_msg;
@@ -260,8 +284,6 @@ static void _dalybms_read_response(
         }
         return;
     }
-    ESP_LOGI(TAG, "Got msg: %02X id of length: %02X",
-                raw_msg[CMD_INDEX_DATA_ID], raw_msg[CMD_INDEX_DATA_LEN]);
 
     for (int i = 0; i < DALYBMS_MAX_MSG_LEN; i++) {
         ESP_LOGD(TAG, "%d: %02X", i, raw_msg[i]);
@@ -350,6 +372,23 @@ void dalybms_set_charge_fet(uart_port_t uart_num, uint8_t level)
     _dalybms_set_fet(uart_num, CMD_ID_CHARGE_FET, level);
 }
 
+void dalybms_reset(uart_port_t uart_num)
+{
+    ESP_LOGI(TAG, "Send BMS reset command");
+    _dalybms_send_command(CMD_ID_BMS_RESET, uart_num, NULL);
+}
+
+bool dalybms_is_failure(
+    dalybms_failure_t failure,
+    dalybms_failure_code_t failure_code
+)
+{
+    uint8_t nbyte = floor(failure_code / 8.0);
+    uint8_t bitmask = 1 << (failure_code - nbyte*8);
+
+    return failure.bitmask[nbyte] & bitmask ? true : false;
+}
+
 void dalybms_test(uart_port_t uart_num)
 {
     ESP_LOGI(TAG, "Testing BMS connection");
@@ -357,8 +396,10 @@ void dalybms_test(uart_port_t uart_num)
     dalybms_read(uart_num, CMD_ID_MIN_MAX_CELL_VOLTAGE);
     dalybms_read(uart_num, CMD_ID_MIN_MAX_TEMPERATURE);
     dalybms_read(uart_num, CMD_ID_TEMPERATURES);
+    dalybms_read(uart_num, CMD_ID_CELL_BALANCE_STATE);
     dalybms_read(uart_num, CMD_ID_BMS_STATE);
     dalybms_read(uart_num, CMD_ID_STATUS);
+    dalybms_read(uart_num, CMD_ID_BATTERY_FAILURE_STATE);
     dalybms_read_cell_voltages(uart_num, 8);
     ESP_LOGI(TAG, "BMS connection test done.");
 }

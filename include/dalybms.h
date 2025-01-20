@@ -120,6 +120,12 @@ extern "C"
         uint16_t temp[4];
     } dalybms_temps_t;
 
+    typedef struct
+    {
+        // 1 - open, 0 - closed
+        uint32_t cells;
+    } dalybms_balance_state_t;
+
     /**
      * Structure for: CMD_ID_BMS_STATE
      */
@@ -132,7 +138,7 @@ extern "C"
         // discharge status
         uint8_t discharge;
         //  bms cycle
-        uint8_t life;
+        uint8_t ncycles;
         // residual capacity.
         uint32_t residual_charge;
     } dalybms_charge_state_t;
@@ -155,6 +161,76 @@ extern "C"
 
     } dalybms_status_t;
 
+    typedef enum
+    {
+        /* byte 0 */
+        DALYBMS_FAIL_CELL_VOLTAGE_HIGH_1 = 0,
+        DALYBMS_FAIL_CELL_VOLTAGE_HIGH_2,
+        DALYBMS_FAIL_CELL_VOLTAGE_LOW_1,
+        DALYBMS_FAIL_CELL_VOLTAGE_LOW_2,
+        DALYBMS_FAIL_PACK_VOLTAGE_HIGH_1,
+        DALYBMS_FAIL_PACK_VOLTAGE_HIGH_2,
+        DALYBMS_FAIL_PACK_VOLTAGE_LOW_1,
+        DALYBMS_FAIL_PACK_VOLTAGE_LOW_2,
+
+        /* byte 1 */
+        DALYBMS_FAIL_CHARGE_TEMP_HIGH_1 = 8,
+        DALYBMS_FAIL_CHARGE_TEMP_HIGH_2,
+        DALYBMS_FAIL_CHARGE_TEMP_LOW_1,
+        DALYBMS_FAIL_CHARGE_TEMP_LOW_2,
+        DALYBMS_FAIL_DISCHARGE_TEMP_HIGH_1,
+        DALYBMS_FAIL_DISCHARGE_TEMP_HIGH_2,
+        DALYBMS_FAIL_DISCHARGE_TEMP_LOW_1,
+        DALYBMS_FAIL_DISCHARGE_TEMP_LOW_2,
+
+        /* byte 2 */
+        DALYBMS_FAIL_CHARGE_CURRENT_HIGH_1 = 16,
+        DALYBMS_FAIL_CHARGE_CURRENT_HIGH_2,
+        DALYBMS_FAIL_DISCHARGE_CURRENT_HIGH_1,
+        DALYBMS_FAIL_DISCHARGE_CURRENT_HIGH_2,
+        DALYBMS_FAIL_SOC_HIGH_1,
+        DALYBMS_FAIL_SOC_HIGH_2,
+        DALYBMS_FAIL_SOC_LOW_1,
+        DALYBMS_FAIL_SOC_LOW_2,
+
+        /* byte 3 */
+        DALYBMS_FAIL_CELL_VOLTAGE_DIFFERENCE_HIGH_1 = 24,
+        DALYBMS_FAIL_CELL_VOLTAGE_DIFFERENCE_HIGH_2,
+        DALYBMS_FAIL_TEMP_SENSOR_DIFFERENCE_HIGH_1,
+        DALYBMS_FAIL_TEMP_SENSOR_DIFFERENCE_HIGH_2,
+
+        /* byte 4 */
+        DALYBMS_FAIL_CHARGE_FET_TEMPERATURE_HIGH = 32,
+        DALYBMS_FAIL_DISCHARGE_FET_TEMPERATURE_HIGH,
+        DALYBMS_FAIL_CHARGE_FET_TEMPERATURE_SENSOR,
+        DALYBMS_FAIL_DISCHARGE_FET_TEMPERATURE_SENSOR,
+        DALYBMS_FAIL_CHARGE_FET_ADHESION,
+        DALYBMS_FAIL_DISCHARGE_FET_ADHESION,
+        DALYBMS_FAIL_CHARGE_FET_OPEN_CIRCUIT,
+        DALYBMS_FAIL_DISCHARGE_FET_OPEN_CIRCUIT,
+
+        /* byte 5 */
+        DALYBMS_FAIL_AFE_ACQUISITION_MODULE = 36,
+        DALYBMS_FAIL_VOLTAGE_SENSOR_MODULE,
+        DALYBMS_FAIL_TEMPERATURE_SENSOR_MODULE,
+        DALYBMS_FAIL_EEPROM_MODULE,
+        DALYBMS_FAIL_RTC_MODULE,
+        DALYBMS_FAIL_PRECHARGE_MODULE,
+        DALYBMS_FAIL_COMMUNICATION_MODULE,
+        DALYBMS_FAIL_INTERNAL_COMMUNICATION_MODULE,
+
+        /* byte 6 */
+        DALYBMS_FAIL_CURRENT_SENSOR_MODULE = 42,
+        DALYBMS_FAIL_MAIN_VOLTAGE_SENSOR_MODULE,
+        DALYBMS_FAIL_SHORT_CIRCUIT_PROTECTION,
+        DALYBMS_FAIL_LOW_VOLTAGE_NO_CHARGING,
+    } dalybms_failure_code_t;
+
+    typedef struct {
+        uint8_t bitmask[7];
+        uint8_t code;
+    } dalybms_failure_t;
+
     /**
      * A parent structure for daly message.
      * Useful for passing messages via a queue.
@@ -170,8 +246,10 @@ extern "C"
             dalybms_minmax_temp_t mmt;
             dalybms_cell_voltage_frame_t cvf;
             dalybms_temps_t tmps;
+            dalybms_balance_state_t bs;
             dalybms_charge_state_t cs;
             dalybms_status_t status;
+            dalybms_failure_t fail;
         };
     } dalybms_msg_t;
 
@@ -181,6 +259,8 @@ extern "C"
     void dalybms_test(uart_port_t uart_num);
     void dalybms_set_charge_fet(uart_port_t uart_num, uint8_t level);
     void dalybms_set_discharge_fet(uart_port_t uart_num, uint8_t level);
+    void dalybms_reset(uart_port_t uart_num);
+    bool dalybms_is_failure(dalybms_failure_t failure, dalybms_failure_code_t failure_code);
 
 #ifdef __cplusplus
 }
