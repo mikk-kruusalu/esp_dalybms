@@ -5,6 +5,7 @@
 #pragma once
 
 #include <stdint.h>
+#include "driver/uart.h"
 
 #define DALYBMS_MAX_MSG_LEN 13
 #define DALYBMS_MAX_NUM_CELLS 24
