@@ -10,6 +10,7 @@
 #define DALYBMS_MAX_MSG_LEN 13
 #define DALYBMS_MAX_NUM_CELLS 24
 #define DALYBMS_UART_TIMEOUT_MS 250
+#define DALYBMS_MAX_HEADER_SEARCH 5
 
 #ifdef __cplusplus
 extern "C"
