@@ -9,6 +9,7 @@
 
 #define DALYBMS_MAX_MSG_LEN 13
 #define DALYBMS_MAX_NUM_CELLS 24
+#define DALYBMS_UART_TIMEOUT_MS 250
 
 #ifdef __cplusplus
 extern "C"
@@ -127,13 +128,18 @@ extern "C"
         uint32_t cells;
     } dalybms_balance_state_t;
 
+    typedef enum {
+        DALYBMS_STATE_STATIONARY = 0,
+        DALYBMS_STATE_CHARGED,
+        DALYBMS_STATE_DISCHARGED
+    } dalybms_state_t;
     /**
      * Structure for: CMD_ID_BMS_STATE
      */
     typedef struct
     {
         // charge/discharge (0 - stationary, 1 - charged, 2 - discharged )
-        uint8_t status;
+        dalybms_state_t status;
         // charge status
         uint8_t charge;
         // discharge status

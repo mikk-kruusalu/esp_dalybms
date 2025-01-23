@@ -232,9 +232,10 @@ static esp_err_t _uart_read_byte(
     uart_port_t uart_num, void *buf, uint32_t length
 )
 {
-    int uart_ret = uart_read_bytes(uart_num, buf, length, pdMS_TO_TICKS(250));
+    int uart_ret = uart_read_bytes(
+        uart_num, buf, length, pdMS_TO_TICKS(DALYBMS_UART_TIMEOUT_MS)
+    );
     if (uart_ret == 0) {
-        // Timeout
         ESP_LOGE(TAG, "Error, uart timeout");
         return ESP_ERR_TIMEOUT;
     }
@@ -248,9 +249,9 @@ static void _dalybms_read_response(
     uint8_t c = 0x0;
 
     // Search for header.
-    while (c != 0xA5) {
+    // while (c != 0xA5) {
         _uart_read_byte(uart_num, &c, 1);
-    }
+    // }
     raw_msg[CMD_INDEX_START] = c;
 
     // get address
