@@ -259,6 +259,7 @@ extern "C"
             dalybms_status_t status;
             dalybms_failure_t fail;
         };
+        esp_err_t error;
     } dalybms_msg_t;
 
 

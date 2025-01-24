@@ -242,7 +242,7 @@ static esp_err_t _uart_read_byte(
     return ESP_OK;
 }
 
-static void _dalybms_read_response(
+static esp_err_t _dalybms_read_response(
     const uart_port_t uart_num, uint8_t *raw_msg
 )
 {
@@ -255,7 +255,7 @@ static void _dalybms_read_response(
     }
     if (c != 0xA5) {
         ESP_LOGW(TAG, "Message header not found!");
-        return;
+        return ESP_ERR_NOT_FINISHED;
     }
     raw_msg[CMD_INDEX_START] = c;
 
@@ -288,12 +288,14 @@ static void _dalybms_read_response(
         for (int i = 0; i < DALYBMS_MAX_MSG_LEN; i++) {
             ESP_LOGE(TAG, "%d: %02X", i, raw_msg[i]);
         }
-        return;
+        return ESP_ERR_INVALID_RESPONSE;
     }
 
     for (int i = 0; i < DALYBMS_MAX_MSG_LEN; i++) {
         ESP_LOGD(TAG, "%d: %02X", i, raw_msg[i]);
     }
+
+    return ESP_OK;
 }
 
 dalybms_msg_t dalybms_read(const uart_port_t uart_num, dalybms_cmd_id_t cmd_id)
@@ -303,8 +305,10 @@ dalybms_msg_t dalybms_read(const uart_port_t uart_num, dalybms_cmd_id_t cmd_id)
     uint8_t raw_msg[DALYBMS_MAX_MSG_LEN] = {
         0x00,
     };
-    _dalybms_read_response(uart_num, raw_msg);
+    esp_err_t err = _dalybms_read_response(uart_num, raw_msg);
     dalybms_msg_t msg = _dalybms_process_msg(raw_msg);
+
+    msg.error = err;
     return msg;
 }
 
