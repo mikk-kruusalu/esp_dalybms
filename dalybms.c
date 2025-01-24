@@ -253,6 +253,10 @@ static void _dalybms_read_response(
         _uart_read_byte(uart_num, &c, 1);
         if (c == 0xA5) break;
     }
+    if (c != 0xA5) {
+        ESP_LOGW(TAG, "Message header not found!");
+        return;
+    }
     raw_msg[CMD_INDEX_START] = c;
 
     // get address
