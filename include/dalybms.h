@@ -142,9 +142,9 @@ extern "C"
         // charge/discharge (0 - stationary, 1 - charged, 2 - discharged )
         dalybms_state_t status;
         // charge status
-        uint8_t charge;
+        uint8_t charge_mos;
         // discharge status
-        uint8_t discharge;
+        uint8_t discharge_mos;
         //  bms cycle
         uint8_t ncycles;
         // residual capacity.

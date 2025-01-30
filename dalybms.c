@@ -121,8 +121,8 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
         }
         case CMD_ID_BMS_STATE: {
             ret_msg.cs.status = msg[4];
-            ret_msg.cs.charge = msg[5];
-            ret_msg.cs.discharge = msg[6];
+            ret_msg.cs.charge_mos = msg[5];
+            ret_msg.cs.discharge_mos = msg[6];
             ret_msg.cs.ncycles = msg[7];
             ret_msg.cs.residual_charge = (
                 msg[8] << 24 | msg[9] << 16 | msg[10] << 8 | msg[11]
@@ -132,8 +132,8 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
                 "State: %d  Charge MOS: %d  Discharge MOS: %d Cycles: %d"
                 "  Remaining Capacity: %ld mAh",
                 ret_msg.cs.status,
-                ret_msg.cs.charge,
-                ret_msg.cs.discharge,
+                ret_msg.cs.charge_mos,
+                ret_msg.cs.discharge_mos,
                 ret_msg.cs.ncycles,
                 ret_msg.cs.residual_charge
             );
