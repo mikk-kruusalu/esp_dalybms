@@ -1,3 +1,6 @@
 version: "0.1.0"
 description: "Component for interfacing with Daly BMS using UART"
 url: "https://github.com/mikk-kruusalu/esp_dalybms"
+repository: git://github.com/mikk-kruusalu/esp_dalybms.git
+repository_info:
+  path: .
