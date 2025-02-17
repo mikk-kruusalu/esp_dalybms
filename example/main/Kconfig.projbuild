@@ -1,0 +1,19 @@
+menu "Example"
+
+    config UART_TX
+        int "TX pin"
+        default 17
+
+    config UART_RX
+        int "RX pin"
+        default 5
+
+    config UART1_RX_BUFSIZE
+        int "RX buffer size"
+        default 1024
+
+    config UART1_TX_BUFSIZE
+        int "TX buffer size"
+        default 1024
+
+endmenu
