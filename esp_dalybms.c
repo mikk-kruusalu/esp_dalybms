@@ -36,7 +36,7 @@ static void _dalybms_send_command(
     // With BMS we send a command, and wait for reply.
     uint8_t command_msg[DALYBMS_MAX_MSG_LEN] = {
         0xA5,  // 0 Start byte
-        0x40,  // 1 'Upper' module
+        0x40,  // ! 1 'Upper' module change to general dalybms
         cmdid, // 2 Command byte.
         0x08,  // 3 Length
         0x00,  // 4 data 0
@@ -76,7 +76,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
                 (float)(((msg[8] << 8) | msg[9]) - 30000) / 10.0f
             );
             ret_msg.soc.soc = ((float)((msg[10] << 8) | msg[11]) / 10.0f);
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "SOC: %.2f %%, %.2f V, %.2f A",
                 ret_msg.soc.soc,
@@ -93,7 +93,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ret_msg.mmcv.cell_diff_mv = (
                 ret_msg.mmcv.max_mv - ret_msg.mmcv.min_mv
             );
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "Max: %d mV (%d)  Min: %d mV (%d)  diff: %d mV",
                 ret_msg.mmcv.max_mv,
@@ -109,7 +109,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ret_msg.mmt.max_id = msg[5];
             ret_msg.mmt.min_temp = msg[6] - 40;
             ret_msg.mmt.min_id = msg[7];
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "Max: %i C (%d)  Min: %i C (%d)",
                 ret_msg.mmt.max_temp,
@@ -127,7 +127,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ret_msg.cs.residual_charge = (
                 msg[8] << 24 | msg[9] << 16 | msg[10] << 8 | msg[11]
             );
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "State: %d  Charge MOS: %d  Discharge MOS: %d Cycles: %d"
                 "  Remaining Capacity: %ld mAh",
@@ -146,7 +146,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ret_msg.status.load = msg[7];
             // msg[8] skip, no idea what it is.
             //ret_msg.status.cycles = msg[9] << 8 | msg[10];
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "Number of cells: %d  Number of NTC: %d  Charger: %d  Load: %d",
                 ret_msg.status.num_cells,
@@ -162,7 +162,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
                 ret_msg.cvf.mvoltage[i] = (msg[5 + 2*i] << 8 | msg[6 + 2*i]);
             }
 
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "Frame %d  1: %d mV  2: %d mV  3: %d mV",
                 ret_msg.cvf.frame_num,
@@ -178,7 +178,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ret_msg.tmps.temp[1] = msg[6] - 40;
             ret_msg.tmps.temp[2] = msg[7] - 40;
             ret_msg.tmps.temp[3] = msg[8] - 40;
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "Frame %d  1: %d C  2: %d C  3: %d C  4: %d C",
                 ret_msg.tmps.frame_num,
@@ -193,7 +193,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             ret_msg.bs.cells = (
                 msg[7] << 24 | msg[6] << 16 | msg[5] << 8 | msg[4]
             );
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "Cell balance state %#04lX",
                 ret_msg.bs.cells
@@ -201,16 +201,16 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             break;
         }
         case CMD_ID_DISCHARGE_FET: {
-            ESP_LOGI(TAG, "Discharge MOS set to level %d", msg[4]);
+            ESP_LOGD(TAG, "Discharge MOS set to level %d", msg[4]);
             break;
         }
         case CMD_ID_CHARGE_FET: {
-            ESP_LOGI(TAG, "Charge MOS set to level %d", msg[4]);
+            ESP_LOGD(TAG, "Charge MOS set to level %d", msg[4]);
             break;
         }
         case CMD_ID_BATTERY_FAILURE_STATE: {
             ret_msg.fail.code = msg[7];
-            ESP_LOGI(
+            ESP_LOGD(
                 TAG,
                 "Got failure code %d",
                 ret_msg.fail.code
@@ -292,7 +292,7 @@ static esp_err_t _dalybms_read_response(
     }
 
     for (int i = 0; i < DALYBMS_MAX_MSG_LEN; i++) {
-        ESP_LOGD(TAG, "%d: %02X", i, raw_msg[i]);
+        ESP_LOGV(TAG, "%d: %02X", i, raw_msg[i]);
     }
 
     return ESP_OK;
@@ -338,7 +338,7 @@ dalybms_cell_voltages_t dalybms_read_cell_voltages(
     }
 
     for (uint8_t i = 0; i < num_cells; i++) {
-        ESP_LOGI(
+        ESP_LOGD(
             TAG,
             "Cell %d: %d mV",
             i,
