@@ -4,6 +4,8 @@
 
 #include "freertos/FreeRTOS.h"
 
+#define LOG_LOCAL_LEVEL CONFIG_LOCAL_LOG_LEVEL
+
 #include "driver/uart.h"
 #include "esp_err.h"
 #include "esp_log.h"
