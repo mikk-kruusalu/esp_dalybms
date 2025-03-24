@@ -30,7 +30,7 @@ static uint8_t _dalybms_calc_checksum(const uint8_t *msg)
 
 static void _dalybms_send_command(
     const dalybms_cmd_id_t cmdid,
-    const uart_port_t uart_num,
+    const dalybms_t *bms,
     const uint8_t *data
 )
 {
@@ -38,7 +38,7 @@ static void _dalybms_send_command(
     // With BMS we send a command, and wait for reply.
     uint8_t command_msg[DALYBMS_MAX_MSG_LEN] = {
         0xA5,  // 0 Start byte
-        0x40,  // ! 1 'Upper' module change to general dalybms
+        bms->address,  // 1 'Upper' module
         cmdid, // 2 Command byte.
         0x08,  // 3 Length
         0x00,  // 4 data 0
@@ -59,7 +59,7 @@ static void _dalybms_send_command(
     command_msg[DALYBMS_MAX_MSG_LEN - 1] = _dalybms_calc_checksum(command_msg);
 
     // Send it to the bms.
-    uart_write_bytes(uart_num, (const char *)command_msg, DALYBMS_MAX_MSG_LEN);
+    uart_write_bytes(bms->uart_num, (const char *)command_msg, DALYBMS_MAX_MSG_LEN);
 }
 
 static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
@@ -300,14 +300,14 @@ static esp_err_t _dalybms_read_response(
     return ESP_OK;
 }
 
-dalybms_msg_t dalybms_read(const uart_port_t uart_num, dalybms_cmd_id_t cmd_id)
+dalybms_msg_t dalybms_read(const dalybms_t *bms, dalybms_cmd_id_t cmd_id)
 {
-    _dalybms_send_command(cmd_id, uart_num, NULL);
+    _dalybms_send_command(cmd_id, bms, NULL);
 
     uint8_t raw_msg[DALYBMS_MAX_MSG_LEN] = {
         0x00,
     };
-    esp_err_t err = _dalybms_read_response(uart_num, raw_msg);
+    esp_err_t err = _dalybms_read_response(bms->uart_num, raw_msg);
     dalybms_msg_t msg = _dalybms_process_msg(raw_msg);
 
     msg.error = err;
@@ -315,7 +315,7 @@ dalybms_msg_t dalybms_read(const uart_port_t uart_num, dalybms_cmd_id_t cmd_id)
 }
 
 dalybms_cell_voltages_t dalybms_read_cell_voltages(
-    const uart_port_t uart_num, uint8_t num_cells
+    const dalybms_t *bms, uint8_t num_cells
 )
 {
     uint8_t raw_msg[DALYBMS_MAX_MSG_LEN] = {
@@ -323,14 +323,14 @@ dalybms_cell_voltages_t dalybms_read_cell_voltages(
     };
     dalybms_cell_voltages_t cvs;
 
-    dalybms_msg_t frame_msg = dalybms_read(uart_num, CMD_ID_CELL_VOLTAGES);
+    dalybms_msg_t frame_msg = dalybms_read(bms, CMD_ID_CELL_VOLTAGES);
     for (uint8_t i = 0; i < 3; i++) {
         cvs.mv[i] = frame_msg.cvf.mvoltage[i];
     }
 
     uint8_t num_frames = ceil(num_cells / 3.0);
     for (uint8_t i = 0; i < num_frames-1; i++) {
-        _dalybms_read_response(uart_num, raw_msg);
+        _dalybms_read_response(bms->uart_num, raw_msg);
         frame_msg = _dalybms_process_msg(raw_msg);
 
         uint8_t offset = (frame_msg.cvf.frame_num - 1) * 3;
@@ -352,7 +352,7 @@ dalybms_cell_voltages_t dalybms_read_cell_voltages(
 }
 
 static void _dalybms_set_fet(
-    uart_port_t uart_num, dalybms_cmd_id_t cmd_id, uint8_t level
+    const dalybms_t *bms, dalybms_cmd_id_t cmd_id, uint8_t level
 )
 {
     uint8_t data[8] = {
@@ -365,29 +365,29 @@ static void _dalybms_set_fet(
         0x00,
         0x00
     };
-    _dalybms_send_command(cmd_id, uart_num, data);
+    _dalybms_send_command(cmd_id, bms, data);
 
     uint8_t raw_msg[DALYBMS_MAX_MSG_LEN] = {
         0x00,
     };
-    _dalybms_read_response(uart_num, raw_msg);
+    _dalybms_read_response(bms->uart_num, raw_msg);
     _dalybms_process_msg(raw_msg);
 }
 
-void dalybms_set_discharge_fet(uart_port_t uart_num, uint8_t level)
+void dalybms_set_discharge_fet(const dalybms_t *bms, uint8_t level)
 {
-    _dalybms_set_fet(uart_num, CMD_ID_DISCHARGE_FET, level);
+    _dalybms_set_fet(bms, CMD_ID_DISCHARGE_FET, level);
 }
 
-void dalybms_set_charge_fet(uart_port_t uart_num, uint8_t level)
+void dalybms_set_charge_fet(const dalybms_t *bms, uint8_t level)
 {
-    _dalybms_set_fet(uart_num, CMD_ID_CHARGE_FET, level);
+    _dalybms_set_fet(bms, CMD_ID_CHARGE_FET, level);
 }
 
-void dalybms_reset(uart_port_t uart_num)
+void dalybms_reset(const dalybms_t *bms)
 {
     ESP_LOGI(TAG, "Send BMS reset command");
-    _dalybms_send_command(CMD_ID_BMS_RESET, uart_num, NULL);
+    _dalybms_send_command(CMD_ID_BMS_RESET, bms, NULL);
 }
 
 bool dalybms_is_failure(
@@ -401,17 +401,17 @@ bool dalybms_is_failure(
     return failure.bitmask[nbyte] & bitmask ? true : false;
 }
 
-void dalybms_test(uart_port_t uart_num)
+void dalybms_test(const dalybms_t *bms)
 {
     ESP_LOGI(TAG, "Testing BMS connection");
-    dalybms_read(uart_num, CMD_ID_SOC_VOLTAGE_CURRENT);
-    dalybms_read(uart_num, CMD_ID_MIN_MAX_CELL_VOLTAGE);
-    dalybms_read(uart_num, CMD_ID_MIN_MAX_TEMPERATURE);
-    dalybms_read(uart_num, CMD_ID_TEMPERATURES);
-    dalybms_read(uart_num, CMD_ID_CELL_BALANCE_STATE);
-    dalybms_read(uart_num, CMD_ID_BMS_STATE);
-    dalybms_read(uart_num, CMD_ID_STATUS);
-    dalybms_read(uart_num, CMD_ID_BATTERY_FAILURE_STATE);
-    dalybms_read_cell_voltages(uart_num, 8);
+    dalybms_read(bms, CMD_ID_SOC_VOLTAGE_CURRENT);
+    dalybms_read(bms, CMD_ID_MIN_MAX_CELL_VOLTAGE);
+    dalybms_read(bms, CMD_ID_MIN_MAX_TEMPERATURE);
+    dalybms_read(bms, CMD_ID_TEMPERATURES);
+    dalybms_read(bms, CMD_ID_CELL_BALANCE_STATE);
+    dalybms_read(bms, CMD_ID_BMS_STATE);
+    dalybms_read(bms, CMD_ID_STATUS);
+    dalybms_read(bms, CMD_ID_BATTERY_FAILURE_STATE);
+    dalybms_read_cell_voltages(bms, 8);
     ESP_LOGI(TAG, "BMS connection test done.");
 }

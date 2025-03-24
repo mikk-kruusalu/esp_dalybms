@@ -11,6 +11,8 @@
 #define DALYBMS_MAX_NUM_CELLS 24
 #define DALYBMS_UART_TIMEOUT_MS 250
 #define DALYBMS_MAX_HEADER_SEARCH 5
+#define DALYBMS_DEFAULT_ADDRESS 0x80
+#define DALYBMS_100BALANCE_ADDRESS 0x40
 
 #ifdef __cplusplus
 extern "C"
@@ -262,13 +264,18 @@ extern "C"
         esp_err_t error;
     } dalybms_msg_t;
 
+    typedef struct
+    {
+        uart_port_t uart_num;
+        uint8_t address;
+    } dalybms_t;
 
-    dalybms_msg_t dalybms_read(const uart_port_t uart_num, dalybms_cmd_id_t cmd_id);
-    dalybms_cell_voltages_t dalybms_read_cell_voltages(const uart_port_t uart_num, uint8_t num_cells);
-    void dalybms_test(uart_port_t uart_num);
-    void dalybms_set_charge_fet(uart_port_t uart_num, uint8_t level);
-    void dalybms_set_discharge_fet(uart_port_t uart_num, uint8_t level);
-    void dalybms_reset(uart_port_t uart_num);
+    dalybms_msg_t dalybms_read(const dalybms_t *bms, dalybms_cmd_id_t cmd_id);
+    dalybms_cell_voltages_t dalybms_read_cell_voltages(const dalybms_t *bms, uint8_t num_cells);
+    void dalybms_test(const dalybms_t *bms);
+    void dalybms_set_charge_fet(const dalybms_t *bms, uint8_t level);
+    void dalybms_set_discharge_fet(const dalybms_t *bms, uint8_t level);
+    void dalybms_reset(const dalybms_t *bms);
     bool dalybms_is_failure(dalybms_failure_t failure, dalybms_failure_code_t failure_code);
 
 #ifdef __cplusplus

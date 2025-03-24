@@ -43,6 +43,11 @@ void app_main(void)
     );
     ESP_ERROR_CHECK(uart_param_config(uart_num, &uart_config));
 
-    dalybms_test(uart_num);
+    const dalybms_t bms = {
+        .uart_num = uart_num,
+        .address = DALYBMS_100BALANCE_ADDRESS,
+    };
+
+    dalybms_test(&bms);
 }
 
