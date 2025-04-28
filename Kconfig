@@ -1,30 +1,11 @@
 menu "Dalybms"
 
-    choice LOCAL_LOG_LEVEL
-        bool "Local log verbosity"
-        default BMS_LOG_LEVEL_INFO
+    config UART_TIMEOUT_MS
+        int "UART timeout"
+        default 1000
 
-        config BMS_LOG_LEVEL_NONE
-            bool "No output"
-        config BMS_LOG_LEVEL_ERROR
-            bool "Error"
-        config BMS_LOG_LEVEL_WARN
-            bool "Warning"
-        config BMS_LOG_LEVEL_INFO
-            bool "Info"
-        config BMS_LOG_LEVEL_DEBUG
-            bool "Debug"
-        config BMS_LOG_LEVEL_VERBOSE
-            bool "Verbose"
-    endchoice
-
-    config LOCAL_LOG_LEVEL
-        int
-        default 0 if BMS_LOG_LEVEL_NONE
-        default 1 if BMS_LOG_LEVEL_ERROR
-        default 2 if BMS_LOG_LEVEL_WARN
-        default 3 if BMS_LOG_LEVEL_INFO
-        default 4 if BMS_LOG_LEVEL_DEBUG
-        default 5 if BMS_LOG_LEVEL_VERBOSE
+    config MAX_HEADER_SEARCH
+        int "Number of times to ping for header"
+        default 4
 
 endmenu

@@ -3,9 +3,6 @@
 #include <math.h>
 
 #include "freertos/FreeRTOS.h"
-
-#define LOG_LOCAL_LEVEL CONFIG_LOCAL_LOG_LEVEL
-
 #include "driver/uart.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -34,7 +31,7 @@ static void _dalybms_send_command(
     const uint8_t *data
 )
 {
-    ESP_LOGI(TAG, "Sending command %#02x", cmdid);
+    ESP_LOGD(TAG, "Sending command %#02x", cmdid);
     // With BMS we send a command, and wait for reply.
     uint8_t command_msg[DALYBMS_MAX_MSG_LEN] = {
         0xA5,  // 0 Start byte
