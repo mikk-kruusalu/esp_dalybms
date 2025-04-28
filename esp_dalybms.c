@@ -217,7 +217,7 @@ static dalybms_msg_t _dalybms_process_msg(const uint8_t *msg)
             for (uint8_t i = 0; i < 7; i++) {
                 ret_msg.fail.bitmask[i] = msg[i + 4];
             }
-            ESP_LOG_BUFFER_HEX_LEVEL(TAG, ret_msg.fail.bitmask, 7, ESP_LOG_INFO);
+            ESP_LOG_BUFFER_HEX_LEVEL(TAG, ret_msg.fail.bitmask, 7, ESP_LOG_DEBUG);
             break;
         }
         default:
